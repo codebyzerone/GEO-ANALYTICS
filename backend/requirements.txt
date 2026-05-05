@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-dotenv
+google-genai
+spacy
+vaderSentiment
+transformers
+sentence-transformers
+sqlalchemy
+apscheduler
+ollama
+pydantic
