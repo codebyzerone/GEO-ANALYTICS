@@ -9,3 +9,8 @@ export const analyzeBrand = async (brandName, queries) => {
   })
   return response.data
 }
+
+export const fetchSample = async () => {
+  const response = await axios.get(`${BASE}/demo/sample`)
+  return response.data
+}

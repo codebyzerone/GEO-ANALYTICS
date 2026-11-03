@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { analyzeBrand } from './api'
+import { analyzeBrand, fetchSample } from './api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -63,6 +63,7 @@ export default function App() {
   const [queries, setQueries] = useState('What are the best payment apps in India?\nWhich UPI app is most recommended?\nBest digital payment solution for businesses')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [sampleLoading, setSampleLoading] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [particles, setParticles] = useState([])
@@ -87,9 +88,22 @@ export default function App() {
       const data = await analyzeBrand(brand, queryList)
       setResult(data)
     } catch (err) {
-      setError('Connection failed. Ensure FastAPI server is running on port 8000.')
+      setError('Analysis failed — the LLM backend may be unavailable. Load the sample report below to see the dashboard.')
     }
     setLoading(false)
+  }
+
+  const handleLoadSample = async () => {
+    setSampleLoading(true)
+    setError(null)
+    setActiveTab('overview')
+    try {
+      const data = await fetchSample()
+      setResult(data)
+    } catch (err) {
+      setError('Failed to load sample report.')
+    }
+    setSampleLoading(false)
   }
 
   const score = result?.average_geo_score || 0
@@ -188,6 +202,13 @@ export default function App() {
         {/* ── MAIN LAYOUT ── */}
         <div style={{ display: 'grid', gridTemplateColumns: result ? '340px 1fr' : '500px', justifyContent: result ? '' : 'center', gap: '1.5rem', transition: 'all 0.5s' }}>
 
+          {result?.is_sample && (
+            <div style={{ gridColumn: '1 / -1', marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.75rem', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontWeight: 700 }}>● SAMPLE DATA</span>
+              <span>Fictional brand "NovaPay (Sample)" — zero LLM setup required. Replace with a real analysis above.</span>
+            </div>
+          )}
+
           {/* ── INPUT PANEL ── */}
           <div className="card" style={{ padding: '1.5rem', animation: 'fadeUp 0.8s ease 0.2s both', alignSelf: 'start' }}>
             <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#00ff88', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -226,9 +247,24 @@ export default function App() {
               {loading ? <span>PROCESSING<span style={{ animation: 'blink 1s infinite' }}>_</span></span> : '▶ EXECUTE ANALYSIS'}
             </button>
 
+            <button
+              onClick={handleLoadSample}
+              disabled={sampleLoading}
+              style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', backgroundColor: sampleLoading ? 'transparent' : 'rgba(0,180,216,0.1)', border: `1px solid ${sampleLoading ? 'rgba(0,180,216,0.3)' : '#00b4d8'}`, borderRadius: '4px', color: '#00b4d8', fontSize: '0.8rem', fontFamily: 'monospace', letterSpacing: '0.2em', cursor: sampleLoading ? 'not-allowed' : 'pointer', transition: 'all 0.3s' }}
+            >
+              {sampleLoading ? 'LOADING SAMPLE...' : '▶ TRY SAMPLE (NO LLM)'}
+            </button>
+
             {error && (
-              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,0,60,0.1)', border: '1px solid rgba(255,0,60,0.3)', borderRadius: '4px', color: '#ff003c', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,0,60,0.1)', border: '1px solid rgba(255,0,60,0.3)', borderRadius: '4px', color: '#ff003c', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 ⚠ {error}
+                <button
+                  onClick={handleLoadSample}
+                  disabled={sampleLoading}
+                  style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.7rem', fontFamily: 'monospace', cursor: sampleLoading ? 'not-allowed' : 'pointer', alignSelf: 'flex-start' }}
+                >
+                  {sampleLoading ? 'Loading...' : 'Load sample report instead'}
+                </button>
               </div>
             )}
 
