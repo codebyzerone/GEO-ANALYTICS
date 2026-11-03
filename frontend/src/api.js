@@ -14,3 +14,14 @@ export const fetchSample = async () => {
   const response = await axios.get(`${BASE}/demo/sample`)
   return response.data
 }
+
+export const fetchHistory = async (brand) => {
+  const params = brand ? `?brand=${encodeURIComponent(brand)}` : ''
+  const response = await axios.get(`${BASE}/history${params}`)
+  return response.data
+}
+
+export const fetchTrends = async (brand) => {
+  const response = await axios.get(`${BASE}/trends?brand=${encodeURIComponent(brand)}`)
+  return response.data
+}

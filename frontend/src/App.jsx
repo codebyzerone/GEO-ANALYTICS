@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { analyzeBrand, fetchSample } from './api'
+import { analyzeBrand, fetchSample, fetchHistory, fetchTrends } from './api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  LineChart, Line
 } from 'recharts'
 
 const GlitchText = ({ text }) => (
@@ -67,6 +68,9 @@ export default function App() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [particles, setParticles] = useState([])
+  const [history, setHistory] = useState([])
+  const [trends, setTrends] = useState(null)
+  const [trendLoading, setTrendLoading] = useState(false)
 
   useEffect(() => {
     const p = Array.from({ length: 20 }, (_, i) => ({
@@ -87,6 +91,8 @@ export default function App() {
       const queryList = queries.split('\n').filter(q => q.trim())
       const data = await analyzeBrand(brand, queryList)
       setResult(data)
+      loadHistory(data.brand)
+      loadTrends(data.brand)
     } catch (err) {
       setError('Analysis failed — the LLM backend may be unavailable. Load the sample report below to see the dashboard.')
     }
@@ -100,10 +106,32 @@ export default function App() {
     try {
       const data = await fetchSample()
       setResult(data)
+      loadHistory(data.brand)
+      loadTrends(data.brand)
     } catch (err) {
       setError('Failed to load sample report.')
     }
     setSampleLoading(false)
+  }
+
+  const loadHistory = async (brandName) => {
+    try {
+      const data = await fetchHistory(brandName)
+      setHistory(data)
+    } catch (err) {
+      setHistory([])
+    }
+  }
+
+  const loadTrends = async (brandName) => {
+    setTrendLoading(true)
+    try {
+      const data = await fetchTrends(brandName)
+      setTrends(data)
+    } catch (err) {
+      setTrends(null)
+    }
+    setTrendLoading(false)
   }
 
   const score = result?.average_geo_score || 0
@@ -342,7 +370,7 @@ export default function App() {
 
               {/* Tabs */}
               <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,255,136,0.1)', marginBottom: '1rem' }}>
-                {['overview', 'breakdown', 'radar'].map(tab => (
+                {['overview', 'breakdown', 'radar', 'trends'].map(tab => (
                   <div key={tab} className={`tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
                     {tab.toUpperCase()}
                   </div>
@@ -478,6 +506,37 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* ── TRENDS TAB ── */}
+        {activeTab === 'trends' && (
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#445566', marginBottom: '1rem' }}>TREND OVER TIME</div>
+            {trendLoading && (
+              <div style={{ color: '#00b4d8', fontSize: '0.8rem', fontFamily: 'monospace' }}>Loading trend data...</div>
+            )}
+            {trends && trends.points && trends.points.length && !trendLoading && (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trends.points}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,255,136,0.05)" />
+                    <XAxis dataKey="date" stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <YAxis domain={[0, 100]} stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <Tooltip contentStyle={{ backgroundColor: '#0a0a1a', border: '1px solid rgba(0,180,216,0.2)', fontFamily: 'monospace', fontSize: '0.75rem' }} />
+                    <Line type="monotone" dataKey="score" stroke="#00b4d8" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#445566' }}>
+                  {trends.points.length} recorded run{trends.points.length !== 1 ? 's' : ''} for <strong>{trends.brand}</strong>
+                </div>
+              </>
+            )}
+            {!trendLoading && trends && (!trends.points || trends.points.length === 0) && (
+              <div style={{ color: '#445566', fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                No trend data yet for this brand. Run an analysis to begin tracking.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── FOOTER ── */}
         <div style={{ marginTop: '3rem', textAlign: 'center', fontSize: '0.65rem', color: '#223', letterSpacing: '0.2em' }}>
