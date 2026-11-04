@@ -329,6 +329,14 @@ export default function App() {
           {/* ── RESULTS PANEL ── */}
           {result && (
             <div style={{ animation: 'fadeUp 0.5s ease' }}>
+              {/* Sample data banner — visible only when the displayed report is the demo sample */}
+              {result && result.is_sample && (
+                <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#00b4d8', fontSize: '0.75rem', fontFamily: 'monospace', letterSpacing: '0.15em' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#00b4d8', borderRadius: '50%', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  <strong>SAMPLE DATA — DEMO</strong>
+                  <span>«{result.brand}» is a fictional brand. No LLM was involved. This report matches the real POST /analyze response schema.</span>
+                </div>
+              )}
 
               {/* Score Header */}
               <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>

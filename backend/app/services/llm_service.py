@@ -1,10 +1,15 @@
+import os
+
 import ollama
+
+# Ollama model used for every call. Override with OLLAMA_MODEL; never hardcode a model path at a call site.
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:1b")
 
 
 def query_gemma_precise(prompt: str) -> str:
     try:
         response = ollama.chat(
-            model="gemma3:1b",
+            model=OLLAMA_MODEL,
             messages=[
                 {"role": "system", "content": "Be precise and factual. List only established, well-known options."},
                 {"role": "user", "content": prompt}
@@ -18,7 +23,7 @@ def query_gemma_precise(prompt: str) -> str:
 def query_gemma_creative(prompt: str) -> str:
     try:
         response = ollama.chat(
-            model="gemma3:1b",
+            model=OLLAMA_MODEL,
             messages=[
                 {"role": "system", "content": "Be comprehensive and exploratory. Include emerging and lesser known options too."},
                 {"role": "user", "content": prompt}
@@ -30,7 +35,7 @@ def query_gemma_creative(prompt: str) -> str:
 
 
 def query_all_llms(prompt: str) -> dict:
-    print(f"\n🔍 Querying: '{prompt[:60]}...'")
+    print(f"\nQuerying: '{prompt[:60]}...'")
     results = {
         "prompt": prompt,
         "responses": {
@@ -38,5 +43,5 @@ def query_all_llms(prompt: str) -> dict:
             "gemma_creative": query_gemma_creative(prompt)
         }
     }
-    print("✅ Both responses received.")
+    print("Both responses received.")
     return results
