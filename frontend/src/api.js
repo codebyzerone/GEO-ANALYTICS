@@ -25,3 +25,21 @@ export const fetchTrends = async (brand) => {
   const response = await axios.get(`${BASE}/trends?brand=${encodeURIComponent(brand)}`)
   return response.data
 }
+
+export const compareBrands = async (brandNames, queries) => {
+  const response = await axios.post(`${BASE}/compare`, null, {
+    params: {
+      brand_names: brandNames,
+      queries: queries
+    }
+  })
+  return response.data
+}
+
+export const exportCsv = async (brand) => {
+  const params = brand ? `?brand=${encodeURIComponent(brand)}` : ''
+  const response = await axios.get(`${BASE}/export/csv${params}`, {
+    responseType: 'blob'
+  })
+  return response.data
+}
