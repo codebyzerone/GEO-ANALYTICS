@@ -10,3 +10,4 @@ sqlalchemy
 apscheduler
 ollama
 pydantic
+pytest  # test runner for backend unit tests (test_demo.py, test_history.py)

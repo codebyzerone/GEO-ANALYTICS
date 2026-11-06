@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { analyzeBrand } from './api'
+import { analyzeBrand, fetchSample, fetchHistory, fetchTrends } from './api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  LineChart, Line
 } from 'recharts'
 
 const GlitchText = ({ text }) => (
@@ -63,9 +64,13 @@ export default function App() {
   const [queries, setQueries] = useState('What are the best payment apps in India?\nWhich UPI app is most recommended?\nBest digital payment solution for businesses')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [sampleLoading, setSampleLoading] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [particles, setParticles] = useState([])
+  const [history, setHistory] = useState([])
+  const [trends, setTrends] = useState(null)
+  const [trendLoading, setTrendLoading] = useState(false)
 
   useEffect(() => {
     const p = Array.from({ length: 20 }, (_, i) => ({
@@ -86,10 +91,47 @@ export default function App() {
       const queryList = queries.split('\n').filter(q => q.trim())
       const data = await analyzeBrand(brand, queryList)
       setResult(data)
+      loadHistory(data.brand)
+      loadTrends(data.brand)
     } catch (err) {
-      setError('Connection failed. Ensure FastAPI server is running on port 8000.')
+      setError('Analysis failed — the LLM backend may be unavailable. Load the sample report below to see the dashboard.')
     }
     setLoading(false)
+  }
+
+  const handleLoadSample = async () => {
+    setSampleLoading(true)
+    setError(null)
+    setActiveTab('overview')
+    try {
+      const data = await fetchSample()
+      setResult(data)
+      loadHistory(data.brand)
+      loadTrends(data.brand)
+    } catch (err) {
+      setError('Failed to load sample report.')
+    }
+    setSampleLoading(false)
+  }
+
+  const loadHistory = async (brandName) => {
+    try {
+      const data = await fetchHistory(brandName)
+      setHistory(data)
+    } catch (err) {
+      setHistory([])
+    }
+  }
+
+  const loadTrends = async (brandName) => {
+    setTrendLoading(true)
+    try {
+      const data = await fetchTrends(brandName)
+      setTrends(data)
+    } catch (err) {
+      setTrends(null)
+    }
+    setTrendLoading(false)
   }
 
   const score = result?.average_geo_score || 0
@@ -188,6 +230,13 @@ export default function App() {
         {/* ── MAIN LAYOUT ── */}
         <div style={{ display: 'grid', gridTemplateColumns: result ? '340px 1fr' : '500px', justifyContent: result ? '' : 'center', gap: '1.5rem', transition: 'all 0.5s' }}>
 
+          {result?.is_sample && (
+            <div style={{ gridColumn: '1 / -1', marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.75rem', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontWeight: 700 }}>● SAMPLE DATA</span>
+              <span>Fictional brand "NovaPay (Sample)" — zero LLM setup required. Replace with a real analysis above.</span>
+            </div>
+          )}
+
           {/* ── INPUT PANEL ── */}
           <div className="card" style={{ padding: '1.5rem', animation: 'fadeUp 0.8s ease 0.2s both', alignSelf: 'start' }}>
             <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#00ff88', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -226,9 +275,24 @@ export default function App() {
               {loading ? <span>PROCESSING<span style={{ animation: 'blink 1s infinite' }}>_</span></span> : '▶ EXECUTE ANALYSIS'}
             </button>
 
+            <button
+              onClick={handleLoadSample}
+              disabled={sampleLoading}
+              style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', backgroundColor: sampleLoading ? 'transparent' : 'rgba(0,180,216,0.1)', border: `1px solid ${sampleLoading ? 'rgba(0,180,216,0.3)' : '#00b4d8'}`, borderRadius: '4px', color: '#00b4d8', fontSize: '0.8rem', fontFamily: 'monospace', letterSpacing: '0.2em', cursor: sampleLoading ? 'not-allowed' : 'pointer', transition: 'all 0.3s' }}
+            >
+              {sampleLoading ? 'LOADING SAMPLE...' : '▶ TRY SAMPLE (NO LLM)'}
+            </button>
+
             {error && (
-              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,0,60,0.1)', border: '1px solid rgba(255,0,60,0.3)', borderRadius: '4px', color: '#ff003c', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,0,60,0.1)', border: '1px solid rgba(255,0,60,0.3)', borderRadius: '4px', color: '#ff003c', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 ⚠ {error}
+                <button
+                  onClick={handleLoadSample}
+                  disabled={sampleLoading}
+                  style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.7rem', fontFamily: 'monospace', cursor: sampleLoading ? 'not-allowed' : 'pointer', alignSelf: 'flex-start' }}
+                >
+                  {sampleLoading ? 'Loading...' : 'Load sample report instead'}
+                </button>
               </div>
             )}
 
@@ -265,6 +329,14 @@ export default function App() {
           {/* ── RESULTS PANEL ── */}
           {result && (
             <div style={{ animation: 'fadeUp 0.5s ease' }}>
+              {/* Sample data banner — visible only when the displayed report is the demo sample */}
+              {result && result.is_sample && (
+                <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#00b4d8', fontSize: '0.75rem', fontFamily: 'monospace', letterSpacing: '0.15em' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#00b4d8', borderRadius: '50%', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  <strong>SAMPLE DATA — DEMO</strong>
+                  <span>«{result.brand}» is a fictional brand. No LLM was involved. This report matches the real POST /analyze response schema.</span>
+                </div>
+              )}
 
               {/* Score Header */}
               <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
@@ -306,7 +378,7 @@ export default function App() {
 
               {/* Tabs */}
               <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,255,136,0.1)', marginBottom: '1rem' }}>
-                {['overview', 'breakdown', 'radar'].map(tab => (
+                {['overview', 'breakdown', 'radar', 'trends'].map(tab => (
                   <div key={tab} className={`tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
                     {tab.toUpperCase()}
                   </div>
@@ -442,6 +514,37 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* ── TRENDS TAB ── */}
+        {activeTab === 'trends' && (
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#445566', marginBottom: '1rem' }}>TREND OVER TIME</div>
+            {trendLoading && (
+              <div style={{ color: '#00b4d8', fontSize: '0.8rem', fontFamily: 'monospace' }}>Loading trend data...</div>
+            )}
+            {trends && trends.points && trends.points.length && !trendLoading && (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trends.points}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,255,136,0.05)" />
+                    <XAxis dataKey="date" stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <YAxis domain={[0, 100]} stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <Tooltip contentStyle={{ backgroundColor: '#0a0a1a', border: '1px solid rgba(0,180,216,0.2)', fontFamily: 'monospace', fontSize: '0.75rem' }} />
+                    <Line type="monotone" dataKey="score" stroke="#00b4d8" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#445566' }}>
+                  {trends.points.length} recorded run{trends.points.length !== 1 ? 's' : ''} for <strong>{trends.brand}</strong>
+                </div>
+              </>
+            )}
+            {!trendLoading && trends && (!trends.points || trends.points.length === 0) && (
+              <div style={{ color: '#445566', fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                No trend data yet for this brand. Run an analysis to begin tracking.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── FOOTER ── */}
         <div style={{ marginTop: '3rem', textAlign: 'center', fontSize: '0.65rem', color: '#223', letterSpacing: '0.2em' }}>

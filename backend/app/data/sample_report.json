@@ -1,0 +1,52 @@
+{
+  "brand": "NovaPay (Sample)",
+  "total_queries": 2,
+  "average_geo_score": 62.5,
+  "is_sample": true,
+  "query_reports": [
+    {
+      "query": "What are the best digital payment apps in India?",
+      "brand": "NovaPay (Sample)",
+      "overall_score": 70.0,
+      "grade": "B — Moderate Presence",
+      "per_llm": {
+        "gemma_precise": {
+          "score": 75.0,
+          "mentioned": true,
+          "position": "early",
+          "sentiment": "positive",
+          "mention_count": 2
+        },
+        "gemma_creative": {
+          "score": 50.0,
+          "mentioned": true,
+          "position": "middle",
+          "sentiment": "neutral",
+          "mention_count": 1
+        }
+      }
+    },
+    {
+      "query": "Which UPI app is best for small businesses?",
+      "brand": "NovaPay (Sample)",
+      "overall_score": 55.0,
+      "grade": "B — Moderate Presence",
+      "per_llm": {
+        "gemma_precise": {
+          "score": 60.0,
+          "mentioned": true,
+          "position": "middle",
+          "sentiment": "neutral",
+          "mention_count": 1
+        },
+        "gemma_creative": {
+          "score": 50.0,
+          "mentioned": true,
+          "position": "late",
+          "sentiment": "neutral",
+          "mention_count": 1
+        }
+      }
+    }
+  ]
+}
