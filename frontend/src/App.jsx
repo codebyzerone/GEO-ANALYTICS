@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { analyzeBrand, fetchSample, fetchHistory, fetchTrends } from './api'
+import { analyzeBrand, fetchSample, fetchHistory, fetchTrends, compareBrands, exportCsv } from './api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -71,6 +71,12 @@ export default function App() {
   const [history, setHistory] = useState([])
   const [trends, setTrends] = useState(null)
   const [trendLoading, setTrendLoading] = useState(false)
+  const [compareBrand1, setCompareBrand1] = useState('')
+  const [compareBrand2, setCompareBrand2] = useState('')
+  const [compareBrand3, setCompareBrand3] = useState('')
+  const [compareResults, setCompareResults] = useState(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [compareError, setCompareError] = useState(null)
 
   useEffect(() => {
     const p = Array.from({ length: 20 }, (_, i) => ({
@@ -112,6 +118,66 @@ export default function App() {
       setError('Failed to load sample report.')
     }
     setSampleLoading(false)
+  }
+
+  const handleCompare = async () => {
+    const brands = [compareBrand1, compareBrand2, compareBrand3].filter(b => b.trim())
+    if (brands.length < 2) {
+      setCompareError('Enter at least 2 brand names to compare.')
+      return
+    }
+    if (brands.length > 3) {
+      setCompareError('Maximum 3 brands for comparison.')
+      return
+    }
+    setCompareLoading(true)
+    setCompareError(null)
+    setCompareResults(null)
+    const queryList = queries.split('\n').filter(q => q.trim())
+    try {
+      const data = await compareBrands(brands, queryList)
+      if (data.error) {
+        setCompareError(data.error)
+      } else {
+        setCompareResults(data)
+      }
+    } catch (err) {
+      setCompareError('Comparison failed — ensure the backend is running.')
+    }
+    setCompareLoading(false)
+  }
+
+  const handleDownloadCsv = async () => {
+    const brand = result ? result.brand : (compareResults ? compareResults.brands[0] : null)
+    if (!brand) return
+    try {
+      const blob = await exportCsv(brand)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${brand.replace(/\s+/g, '_')}_analysis.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('CSV export failed.')
+    }
+  }
+
+  const handleDownloadJson = () => {
+    const data = result || (compareResults ? { comparison: compareResults } : null)
+    if (!data) return
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const name = result ? `${result.brand.replace(/\s+/g, '_')}_report.json` : 'comparison.json'
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const loadHistory = async (brandName) => {
@@ -541,6 +607,121 @@ export default function App() {
             {!trendLoading && trends && (!trends.points || trends.points.length === 0) && (
               <div style={{ color: '#445566', fontSize: '0.8rem', fontFamily: 'monospace' }}>
                 No trend data yet for this brand. Run an analysis to begin tracking.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPARISON SECTION ── */}
+        {compareResults || compareError || compareLoading || (compareBrand1.trim() || compareBrand2.trim() || compareBrand3.trim()) && (
+          <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+            <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#445566', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>MULTI-BRAND COMPARISON</span>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={handleDownloadCsv}
+                  disabled={!compareResults && !result}
+                  style={{ padding: '0.4rem 0.7rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.7rem', fontFamily: 'monospace', cursor: (!compareResults && !result) ? 'not-allowed' : 'pointer' }}
+                >
+                  ↓ CSV
+                </button>
+                <button
+                  onClick={handleDownloadJson}
+                  disabled={!compareResults && !result}
+                  style={{ padding: '0.4rem 0.7rem', backgroundColor: 'rgba(0,180,216,0.1)', border: '1px solid #00b4d8', borderRadius: '4px', color: '#00b4d8', fontSize: '0.7rem', fontFamily: 'monospace', cursor: (!compareResults && !result) ? 'not-allowed' : 'pointer' }}
+                >
+                  ↓ JSON
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <input
+                value={compareBrand1}
+                onChange={e => setCompareBrand1(e.target.value)}
+                placeholder="Brand 1"
+                style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', fontSize: '0.8rem', fontFamily: 'monospace', minWidth: '120px' }}
+              />
+              <input
+                value={compareBrand2}
+                onChange={e => setCompareBrand2(e.target.value)}
+                placeholder="Brand 2"
+                style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', fontSize: '0.8rem', fontFamily: 'monospace', minWidth: '120px' }}
+              />
+              <input
+                value={compareBrand3}
+                onChange={e => setCompareBrand3(e.target.value)}
+                placeholder="Brand 3 (optional)"
+                style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', fontSize: '0.8rem', fontFamily: 'monospace', minWidth: '150px' }}
+              />
+              <button
+                onClick={handleCompare}
+                disabled={compareLoading}
+                style={{ padding: '0.5rem 1rem', backgroundColor: compareLoading ? 'transparent' : 'rgba(0,255,136,0.1)', border: `1px solid ${compareLoading ? 'rgba(0,255,136,0.3)' : '#00ff88'}`, borderRadius: '4px', color: '#00ff88', fontSize: '0.8rem', fontFamily: 'monospace', cursor: compareLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {compareLoading ? 'COMPARING...' : '▶ COMPARE'}
+              </button>
+            </div>
+
+            {compareError && (
+              <div style={{ padding: '0.75rem', backgroundColor: 'rgba(255,0,60,0.1)', border: '1px solid rgba(255,0,60,0.3)', borderRadius: '4px', color: '#ff003c', fontSize: '0.75rem', fontFamily: 'monospace', marginBottom: '1rem' }}>
+                ⚠ {compareError}
+              </div>
+            )}
+
+            {compareResults && (
+              <div>
+                <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: '#445566', marginBottom: '0.75rem' }}>
+                  Comparison across {compareResults.queries.length} query{compareResults.queries.length !== 1 ? 's' : ''}
+                </div>
+
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={compareResults.summary}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,255,136,0.05)" />
+                    <XAxis dataKey="brand" stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <YAxis domain={[0, 100]} stroke="#334" fontSize={11} fontFamily="monospace" />
+                    <Tooltip contentStyle={{ backgroundColor: '#0a0a1a', border: '1px solid rgba(0,180,216,0.2)', fontFamily: 'monospace', fontSize: '0.75rem' }} />
+                    <Bar dataKey="average_geo_score" fill="#00b4d8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+
+                <div style={{ marginTop: '1.5rem', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', color: '#445566' }}>Metric</th>
+                        {compareResults.brands.map((b, i) => (
+                          <th key={i} style={{ textAlign: 'center', padding: '0.5rem', color: i === 0 ? '#00ff88' : i === 1 ? '#00b4d8' : '#ff006e' }}>
+                            {b}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '0.5rem', color: '#aaa', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Average Score</td>
+                        {compareResults.brands.map((b, i) => (
+                          <td key={i} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: 700, color: i === 0 ? '#00ff88' : i === 1 ? '#00b4d8' : '#ff006e' }}>
+                            {compareResults.results[b].average_geo_score}
+                          </td>
+                        ))}
+                      </tr>
+                      {compareResults.queries.map((q, qi) => (
+                        <tr key={qi}>
+                          <td style={{ padding: '0.5rem', color: '#aaa', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.7rem' }}>{q}</td>
+                          {compareResults.brands.map((b, i) => {
+                            const report = compareResults.results[b].query_reports[qi]
+                            return (
+                              <td key={i} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                {report ? report.overall_score : '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

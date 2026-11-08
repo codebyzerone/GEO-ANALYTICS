@@ -13,5 +13,6 @@ class AnalysisRun(Base):
     brand_name = Column(String, index=True, nullable=False)
     queries = Column(String, nullable=False)  # JSON-encoded list of query strings
     overall_score = Column(Float, nullable=False)
+    sentiment = Column(String, nullable=True)  # aggregate sentiment across LLM responses
     per_query_scores = Column(String, nullable=False)  # JSON-encoded list of {query, score}
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
