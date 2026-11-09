@@ -39,12 +39,13 @@ def run_analysis_pipeline(brand_name: str, queries: list) -> dict:
     with a TTL from the CACHE_TTL_SECONDS env var. Cache hits are marked
     as cached=true in the response.
     """
-    # Build cache key from brand, queries, and model identifiers
-    # We infer model identifiers from the LLM results structure;
-    # if cached, we'll have this info from the cached result.
-    model_identifiers = []  # will be populated from cached or first run
 
-    cache_key = _make_cache_key(brand_name, queries, model_identifiers)
+    # Model identifiers used by the LLM service (query_all_llms returns responses
+    # keyed by "gemma_precise" and "gemma_creative"). Build the cache key ONCE
+    # from these real model IDs and reuse the same key for both lookup and store,
+    # so a repeat analysis actually hits the cache.
+    model_ids = ["gemma_precise", "gemma_creative"]
+    cache_key = _make_cache_key(brand_name, queries, model_ids)
 
     # Check cache first
     cached = _cache_get(cache_key)
@@ -82,17 +83,9 @@ def run_analysis_pipeline(brand_name: str, queries: list) -> dict:
         "query_reports": all_reports,
     }
 
-    # Store in cache with TTL; mark as not cached in storage (we'll add cached flag on read)
-    # We need to know the model identifiers for the cache key. Extract from the first report's per_llm keys.
-    # Collect model identifiers from the reports
-    model_ids = []
-    for report in all_reports:
-        model_ids.extend(report.get("per_llm", {}).keys())
-    model_ids = list(set(model_ids))
-
-    # Re-create cache key with actual model identifiers
-    final_cache_key = _make_cache_key(brand_name, queries, model_ids)
-    _cache_set(final_cache_key, result, int(settings.CACHE_TTL_SECONDS))  # type: ignore
+    # Store in cache with TTL using the same cache key built above from the real model IDs.
+    # Mark as not cached in storage (we add the cached flag on read).
+    _cache_set(cache_key, result, int(settings.CACHE_TTL_SECONDS))  # type: ignore
 
     return result
 
