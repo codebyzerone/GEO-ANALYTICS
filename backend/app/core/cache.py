@@ -19,10 +19,23 @@ def _make_cache_key(brand_name: str, queries: list, model_identifiers: list) -> 
 
 def _cache_get(key: str) -> Optional[dict]:
     """Get a cached value if it exists and hasn't expired."""
-    cache_file = settings.DATABASE_URL.replace("sqlite:///", "./.cache.json") if "sqlite" in settings.DATABASE_URL else None
-    # ... simplified: use a simple file-based cache for this project
-    # In production, this would be Redis or similar
-    return None
+    cache_path = settings.DATABASE_URL.replace("sqlite:///", "./.cache.json") if "sqlite" in settings.DATABASE_URL else "./.cache.json"
+    try:
+        with open(cache_path, "r") as f:
+            cache = json.load(f)
+        entry = cache.get(key)
+        if entry is None:
+            return None
+        expires = entry.get("expires", 0)
+        if time.time() > expires:
+            # Remove expired entry
+            cache = {k: v for k, v in cache.items() if k != key}
+            with open(cache_path, "w") as f:
+                json.dump(cache, f)
+            return None
+        return entry.get("value")
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return None
 
 
 def _cache_set(key: str, value: dict, ttl: int) -> None:
