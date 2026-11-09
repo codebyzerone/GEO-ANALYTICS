@@ -1,13 +1,10 @@
 fastapi
 uvicorn
 python-dotenv
-google-genai
 spacy
 vaderSentiment
-transformers
-sentence-transformers
 sqlalchemy
-apscheduler
 ollama
 pydantic
+en-core-web-sm==3.8.0  # spaCy en_core_web_sm model (loaded by nlp_service at import time)
 pytest  # test runner for backend unit tests (test_demo.py, test_history.py)
