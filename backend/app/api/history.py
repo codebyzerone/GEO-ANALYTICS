@@ -16,6 +16,7 @@ def _run_to_dict(run: AnalysisRun) -> dict:
         "brand": run.brand_name,
         "queries": json.loads(run.queries),
         "overall_score": run.overall_score,
+        "sentiment": getattr(run, "sentiment", None),
         "per_query_scores": json.loads(run.per_query_scores),
         "created_at": run.created_at.isoformat(),
     }
